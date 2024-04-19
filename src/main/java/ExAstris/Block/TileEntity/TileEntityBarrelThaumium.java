@@ -36,7 +36,7 @@ import exnihilo.registries.CompostRegistry;
 import exnihilo.registries.helpers.Color;
 import exnihilo.registries.helpers.Compostable;
 
-public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandler, ISidedInventory{	
+public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandler, ISidedInventory{
 	private static final float MIN_RENDER_CAPACITY = 0.1f;
 	private static final float MAX_RENDER_CAPACITY = 0.9f;
 	private static final int MAX_COMPOSTING_TIME = 1000;
@@ -52,18 +52,18 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 	public enum BarrelMode
 	{
-		EMPTY(0, ExtractMode.None), 
-		FLUID(1, ExtractMode.None), 
-		COMPOST(2, ExtractMode.None), 
-		DIRT(3, ExtractMode.Always), 
-		CLAY(4, ExtractMode.Always), 
-		SPORED(5, ExtractMode.None), 
-		SLIME(6, ExtractMode.Always), 
-		NETHERRACK(7, ExtractMode.Always), 
-		ENDSTONE(8, ExtractMode.Always), 
-		MILKED(9, ExtractMode.None), 
+		EMPTY(0, ExtractMode.None),
+		FLUID(1, ExtractMode.None),
+		COMPOST(2, ExtractMode.None),
+		DIRT(3, ExtractMode.Always),
+		CLAY(4, ExtractMode.Always),
+		SPORED(5, ExtractMode.None),
+		SLIME(6, ExtractMode.Always),
+		NETHERRACK(7, ExtractMode.Always),
+		ENDSTONE(8, ExtractMode.Always),
+		MILKED(9, ExtractMode.None),
 		SOULSAND(10, ExtractMode.Always),
-		BEETRAP(11, ExtractMode.Always), 
+		BEETRAP(11, ExtractMode.Always),
 		OBSIDIAN(12, ExtractMode.Always),
 		COBBLESTONE(13, ExtractMode.Always),
 		BLAZE_COOKING(14, ExtractMode.None),
@@ -127,7 +127,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 	@Override
 	public void updateEntity()
-	{	
+	{
 		//XXX Barrel state logic.
 		if (updateTimer >= UPDATE_INTERVAL)
 		{
@@ -156,7 +156,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 		case FLUID:
 			//WATER!
-			if (fluid.fluidID == FluidRegistry.WATER.getID())
+			if (fluid.getFluidID() == FluidRegistry.WATER.getID())
 			{
 				//Handle Rain
 				if (!worldObj.isRemote && !isFull() && worldObj.isRaining() && yCoord >= worldObj.getTopSolidOrLiquidBlock(xCoord, zCoord) - 1 && worldObj.getBiomeGenForCoords(xCoord, zCoord).rainfall > 0.0f)
@@ -215,7 +215,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 			}
 
 			//LAVA!
-			if (fluid.fluidID == FluidRegistry.LAVA.getID())
+			if (fluid.getFluidID() == FluidRegistry.LAVA.getID())
 			{
 				//Burn the barrel it is flammable.
 				if(worldObj.getBlock(xCoord, yCoord, zCoord).getMaterial().getCanBurn())
@@ -245,7 +245,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 							//spit lava on the ground
 							worldObj.setBlock(xCoord, yCoord, zCoord, Blocks.lava, 0, 3);
 							return;
-						}	
+						}
 					}
 				}
 
@@ -412,8 +412,8 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 						for (int z = -1; z <= 1; z++)
 						{
 							if (
-									(worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) || worldObj.getBlock(xCoord + x, yCoord + y, zCoord + z) == Blocks.fire) && 
-									(worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) || worldObj.getBlock(xCoord + x, yCoord + y, zCoord + z) == Blocks.fire) && 
+									(worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) || worldObj.getBlock(xCoord + x, yCoord + y, zCoord + z) == Blocks.fire) &&
+									(worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) || worldObj.getBlock(xCoord + x, yCoord + y, zCoord + z) == Blocks.fire) &&
 									worldObj.rand.nextInt(10) == 0 && !isDone())
 							{
 								timer = MAX_COMPOSTING_TIME;
@@ -477,8 +477,8 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 						for (int z = -1; z <= 1; z++)
 						{
 							if (
-									worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) && 
-									worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) && 
+									worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) &&
+									worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) &&
 									worldObj.isAirBlock(xCoord + x, yCoord + y + 2, zCoord + z) &&
 									worldObj.rand.nextInt(10) == 0 && !isDone())
 							{
@@ -539,8 +539,8 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 						for (int z = -1; z <= 1; z++)
 						{
 							if (
-									worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) && 
-									worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) && 
+									worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) &&
+									worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) &&
 									worldObj.isAirBlock(xCoord + x, yCoord + y + 2, zCoord + z) &&
 									worldObj.rand.nextInt(10) == 0 && !isDone())
 							{
@@ -597,8 +597,8 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 						for (int z = -1; z <= 1; z++)
 						{
 							if (
-									worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) && 
-									worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) && 
+									worldObj.isAirBlock(xCoord + x, yCoord + y, zCoord + z) &&
+									worldObj.isAirBlock(xCoord + x, yCoord + y + 1, zCoord + z) &&
 									worldObj.isAirBlock(xCoord + x, yCoord + y + 2, zCoord + z) &&
 									worldObj.rand.nextInt(10) == 0 && !isDone())
 							{
@@ -660,7 +660,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 		{
 			return false;
 		}
-	}	
+	}
 
 	public boolean isFull()
 	{
@@ -774,7 +774,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 	public float getAdjustedVolume()
 	{
 		float capacity = MAX_RENDER_CAPACITY - MIN_RENDER_CAPACITY;
-		float adjusted = volume * capacity;		
+		float adjusted = volume * capacity;
 		adjusted += MIN_RENDER_CAPACITY;
 		return adjusted;
 	}
@@ -810,7 +810,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 		case 3:
 			setMode(BarrelMode.DIRT);
-			break;	
+			break;
 
 		case 4:
 			setMode(BarrelMode.CLAY);
@@ -826,19 +826,19 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 		case 7:
 			setMode(BarrelMode.NETHERRACK);
-			break;	
+			break;
 
 		case 8:
 			setMode(BarrelMode.ENDSTONE);
-			break;	
+			break;
 
 		case 9:
 			setMode(BarrelMode.MILKED);
-			break;	
+			break;
 
 		case 10:
 			setMode(BarrelMode.SOULSAND);
-			break;	
+			break;
 
 		case 11:
 			setMode(BarrelMode.BEETRAP);
@@ -899,15 +899,15 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 		case 25:
 			setMode(BarrelMode.BLIZZ);
 			break;
-			
+
 		case 26:
 			setMode(BarrelMode.RECIPE);
 			break;
-			
+
 		case 27:
 			setMode(BarrelMode.MOB);
 			break;
-			
+
 		case 28:
 			setMode(BarrelMode.MAGICAL_MOB);
 			break;
@@ -938,7 +938,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 		compound.setInteger("timer", timer);
 		compound.setInteger("color", color.toInt());
 		compound.setInteger("colorBase", colorBase.toInt());
-		compound.setShort("fluid", (short)fluid.fluidID);
+		compound.setShort("fluid", (short)fluid.getFluidID());
 
 		if(block == null) {
 			compound.setString("block", "");
@@ -966,7 +966,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 
 
-	//IFluidHandler!	
+	//IFluidHandler!
 	@Override
 	public int fill(ForgeDirection from, FluidStack resource, boolean doFill) {
 		//Simulate the fill to see if there is room for incoming liquids.
@@ -979,7 +979,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 				return resource.amount;
 			}
 
-			if (getMode() == BarrelMode.FLUID && resource.fluidID == fluid.fluidID)
+			if (getMode() == BarrelMode.FLUID && resource.getFluidID() == fluid.getFluidID())
 			{
 				if (capacity >= resource.amount)
 				{
@@ -994,9 +994,9 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 		{
 			if (getMode() == BarrelMode.EMPTY)
 			{
-				if (resource.fluidID != fluid.fluidID)
+				if (resource.getFluidID() != fluid.getFluidID())
 				{
-					fluid =  new FluidStack(FluidRegistry.getFluid(resource.fluidID),resource.amount);
+					fluid =  new FluidStack(FluidRegistry.getFluid(resource.getFluidID()),resource.amount);
 				}else
 				{
 					fluid.amount = resource.amount;
@@ -1008,7 +1008,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 				return resource.amount;
 			}
 
-			if (getMode() == BarrelMode.FLUID && resource.fluidID == fluid.fluidID)
+			if (getMode() == BarrelMode.FLUID && resource.getFluidID() == fluid.getFluidID())
 			{
 				if (capacity >= resource.amount)
 				{
@@ -1040,18 +1040,18 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 		{
 			if (fluid.amount >= resource.amount)
 			{
-				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(resource.fluidID),resource.amount);
+				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(resource.getFluidID()),resource.amount);
 				return simulated;
 			}else
 			{
-				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(resource.fluidID),fluid.amount);
+				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(resource.getFluidID()),fluid.amount);
 				return simulated;
 			}
 		}else
 		{
 			if (fluid.amount > resource.amount)
 			{
-				FluidStack drained = new FluidStack(FluidRegistry.getFluid(resource.fluidID),resource.amount);
+				FluidStack drained = new FluidStack(FluidRegistry.getFluid(resource.getFluidID()),resource.amount);
 				fluid.amount -= resource.amount;
 				volume = (float)fluid.amount / (float)MAX_FLUID;
 				//worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
@@ -1060,7 +1060,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 				return drained;
 			}else
 			{
-				FluidStack drained = new FluidStack(FluidRegistry.getFluid(resource.fluidID),fluid.amount);
+				FluidStack drained = new FluidStack(FluidRegistry.getFluid(resource.getFluidID()),fluid.amount);
 				fluid.amount = 0;
 				volume = 0;
 				setMode(BarrelMode.EMPTY);
@@ -1082,18 +1082,18 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 		{
 			if (fluid.amount >= maxDrain)
 			{
-				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(fluid.fluidID),maxDrain);
+				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(fluid.getFluidID()),maxDrain);
 				return simulated;
 			}else
 			{
-				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(fluid.fluidID),fluid.amount);
+				FluidStack simulated = new FluidStack(FluidRegistry.getFluid(fluid.getFluidID()),fluid.amount);
 				return simulated;
 			}
 		}else
 		{
 			if (fluid.amount > maxDrain)
 			{
-				FluidStack drained = new FluidStack(FluidRegistry.getFluid(fluid.fluidID),maxDrain);
+				FluidStack drained = new FluidStack(FluidRegistry.getFluid(fluid.getFluidID()),maxDrain);
 				fluid.amount -= maxDrain;
 				volume = (float)fluid.amount / (float)MAX_FLUID;
 				//worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
@@ -1102,7 +1102,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 				return drained;
 			}else
 			{
-				FluidStack drained = new FluidStack(FluidRegistry.getFluid(fluid.fluidID),fluid.amount);
+				FluidStack drained = new FluidStack(FluidRegistry.getFluid(fluid.getFluidID()),fluid.amount);
 				fluid.amount = 0;
 				volume = 0;
 				setMode(BarrelMode.EMPTY);
@@ -1233,7 +1233,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 				if(getMode() == BarrelMode.FLUID && this.isFull())
 				{
-					if(fluid.fluidID == FluidRegistry.WATER.getID())
+					if(fluid.getFluidID() == FluidRegistry.WATER.getID())
 					{
 						if (ModData.ALLOW_BARREL_RECIPE_CLAY && Block.getBlockFromItem(item) == ENBlocks.Dust)
 						{
@@ -1246,7 +1246,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 						}
 					}
 
-					if(fluid.fluidID == FluidRegistry.LAVA.getID())
+					if(fluid.getFluidID() == FluidRegistry.LAVA.getID())
 					{
 						if (ModData.ALLOW_BARREL_RECIPE_NETHERRACK && item == Items.redstone)
 						{
@@ -1264,7 +1264,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 						}
 					}
 
-					if (fluid.fluidID == Fluids.fluidWitchWater.getID())
+					if (fluid.getFluidID() == Fluids.fluidWitchWater.getID())
 					{
 						if(ModData.ALLOW_BARREL_RECIPE_SOULSAND && Block.getBlockFromItem(item) == Blocks.sand)
 						{
@@ -1302,7 +1302,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 					}
 
 					Fluid seedOil = FluidRegistry.getFluid("seedoil");
-					if (seedOil != null && fluid.fluidID == seedOil.getID())
+					if (seedOil != null && fluid.getFluidID() == seedOil.getID())
 					{
 						setMode(BarrelMode.BEETRAP);
 					}
@@ -1340,7 +1340,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 	public void closeInventory() {}
 
 	@Override
-	public boolean isItemValidForSlot(int slot, ItemStack item) {	
+	public boolean isItemValidForSlot(int slot, ItemStack item) {
 		if (slot == 1)
 		{
 			return isItemValid(item);
@@ -1406,7 +1406,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 
 		if(getMode() == BarrelMode.FLUID && this.isFull())
 		{
-			if(fluid.fluidID == FluidRegistry.WATER.getID())
+			if(fluid.getFluidID() == FluidRegistry.WATER.getID())
 			{
 				if (ModData.ALLOW_BARREL_RECIPE_CLAY && Block.getBlockFromItem(item) == ENBlocks.Dust)
 				{
@@ -1420,7 +1420,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 			}
 
 
-			if(fluid.fluidID == FluidRegistry.LAVA.getID())
+			if(fluid.getFluidID() == FluidRegistry.LAVA.getID())
 			{
 				if (ModData.ALLOW_BARREL_RECIPE_NETHERRACK && item == Items.redstone)
 				{
@@ -1439,7 +1439,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 			}
 
 
-			if (fluid.fluidID == Fluids.fluidWitchWater.getID())
+			if (fluid.getFluidID() == Fluids.fluidWitchWater.getID())
 			{
 				if(ModData.ALLOW_BARREL_RECIPE_SOULSAND && Block.getBlockFromItem(item) == Blocks.sand)
 				{
@@ -1473,7 +1473,7 @@ public class TileEntityBarrelThaumium extends TileEntity implements IFluidHandle
 			}
 
 			Fluid seedOil = FluidRegistry.getFluid("seedoil");
-			if (seedOil != null && fluid.fluidID == seedOil.getID() && Block.getBlockFromItem(item) == ENBlocks.BeeTrap)
+			if (seedOil != null && fluid.getFluidID() == seedOil.getID() && Block.getBlockFromItem(item) == ENBlocks.BeeTrap)
 			{
 				return true;
 			}
