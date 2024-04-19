@@ -1,10 +1,10 @@
 [
 {
-  "modid": "exastris",
-  "name": "Ex Astris",
+  "modid": "{modId}",
+  "name": "{modName}",
   "description": "Ex Nihilo Addon",
-  "version": "${version}",
-  "mcversion": "${mcversion}",
+  "version": "${modVersion}",
+  "mcversion": "${minecraftVersion}",
   "url": "",
   "updateUrl": "",
   "authorList": ["LoveHoly"],
