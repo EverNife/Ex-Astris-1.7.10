@@ -1,7 +1,7 @@
 [
 {
-  "modid": "{modId}",
-  "name": "{modName}",
+  "modid": "exastris",
+  "name": "Ex Astris",
   "description": "Ex Nihilo Addon",
   "version": "${modVersion}",
   "mcversion": "${minecraftVersion}",
