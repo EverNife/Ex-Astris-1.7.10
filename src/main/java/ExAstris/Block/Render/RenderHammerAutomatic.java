@@ -16,7 +16,9 @@ public class RenderHammerAutomatic extends TileEntitySpecialRenderer
 
     private final float amntMaxRaise = 0.31f;
     private final float percShowItem = 0.60f;
-    
+
+    private boolean hadItem = false;
+
     @Override
     public void renderTileEntityAt(TileEntity tileentity, double x, double y, double z, float f)
     {

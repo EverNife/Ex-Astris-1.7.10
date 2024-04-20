@@ -4,10 +4,12 @@ import java.text.DecimalFormat;
 import java.util.List;
 
 import ExAstris.Block.BlockBarrelThaumium;
+import ExAstris.Block.BlockHammerAutomatic;
 import ExAstris.Block.BlockQStronglyCompressedStone;
 import ExAstris.Block.BlockSieveAutomatic;
 import ExAstris.Block.TileEntity.TileEntityBarrelThaumium;
 import ExAstris.Block.TileEntity.TileEntityBarrelThaumium.BarrelMode;
+import ExAstris.Block.TileEntity.TileEntityHammerAutomatic;
 import ExAstris.Block.TileEntity.TileEntitySieveAutomatic;
 import ExAstris.Block.TileEntity.TileEntitySieveAutomatic.SieveMode;
 import ExAstris.Block.TileEntity.TileEntityStronglyCompressedStone;
@@ -34,7 +36,7 @@ public class Waila implements IWailaDataProvider {
 			IWailaDataAccessor accessor, IWailaConfigHandler config) {
 		return currentTip;
 	}
-	
+
 	@Override
 	public List<String> getWailaBody(ItemStack stack, List<String> currentTip,
 			IWailaDataAccessor accessor, IWailaConfigHandler config) {
@@ -42,20 +44,25 @@ public class Waila implements IWailaDataProvider {
 			TileEntityBarrelThaumium teBarrel = (TileEntityBarrelThaumium) accessor
 					.getTileEntity();
 			currentTip.add(getBarrelDisplay(teBarrel.getMode(), teBarrel));
-		} 
+		}
 		else if (accessor.getBlock() instanceof BlockSieveAutomatic) {
 			TileEntitySieveAutomatic teSieve = (TileEntitySieveAutomatic) accessor
 					.getTileEntity();
-			currentTip.add(getSieveDisplay(teSieve));
-		} 
+            setSieveDisplay(currentTip, teSieve);
+		}
 		else if (accessor.getBlock() instanceof BlockQStronglyCompressedStone) {
 			TileEntityStronglyCompressedStone scStone = (TileEntityStronglyCompressedStone) accessor
 					.getTileEntity();
 			currentTip.add(getSCStoneDisplay(scStone));
-		} 
+		}
+        else if (accessor.getBlock() instanceof BlockHammerAutomatic) {
+            TileEntityHammerAutomatic teHammer = (TileEntityHammerAutomatic) accessor
+                .getTileEntity();
+            setHammerDisplay(currentTip, teHammer);
+        }
 		return currentTip;
 	}
-	
+
 	@Override
 	public List<String> getWailaTail(ItemStack stack, List<String> currentTip,
 			IWailaDataAccessor accessor, IWailaConfigHandler config) {
@@ -63,10 +70,10 @@ public class Waila implements IWailaDataProvider {
 			TileEntitySieveAutomatic teSieve = (TileEntitySieveAutomatic) accessor
 				.getTileEntity();
 			currentTip.add(getSieveDisplayTail(teSieve));
-		} 
+		}
 		return currentTip;
 	}
-	
+
 	public String getBarrelDisplay(BarrelMode mode, TileEntityBarrelThaumium barrel) {
 		DecimalFormat format = new DecimalFormat("##.#");
 		switch (mode) {
@@ -132,26 +139,45 @@ public class Waila implements IWailaDataProvider {
 			return "";
 		}
 	}
-	
-	public String getSieveDisplay(TileEntitySieveAutomatic sieve) {
-		if (sieve.mode == SieveMode.EMPTY)
-			return "Empty";// 
-		else
-			return Math.round(getSieveClicksRemaining(sieve)) + "% left";// + sieve.storage.getEnergyStored() + " / " + sieve.storage.getMaxEnergyStored() + " RF"
+
+	public void setSieveDisplay(List<String> currentTip, TileEntitySieveAutomatic sieve) {
+		if (sieve.mode == SieveMode.EMPTY){
+            currentTip.add("Vazia");//
+        } else {
+            currentTip.add(Math.round(getSieveClicksRemaining(sieve)) + "% restante");// + sieve.storage.getEnergyStored() + " / " + sieve.storage.getMaxEnergyStored() + " RF"
+        }
+
+        if (sieve.isIdle()){
+            currentTip.add("§cEssa máquina está cheia!");
+            currentTip.add("§cTrabalho interrompido.");
+        }
 	}
-	
+
+    public void setHammerDisplay(List<String> currentTip, TileEntityHammerAutomatic hammer) {
+        if (hammer.mode == TileEntityHammerAutomatic.HammerMode.EMPTY){
+            currentTip.add("Vazia");//
+        } else {
+            currentTip.add(Math.round(((hammer.getVolume() / 1) * 100)) + "% restante");// + sieve.storage.getEnergyStored() + " / " + sieve.storage.getMaxEnergyStored() + " RF"
+        }
+
+        if (hammer.isIdle()){
+            currentTip.add("§cEssa máquina está cheia!");
+            currentTip.add("§cTrabalho interrompido.");
+        }
+    }
+
 	public String getSCStoneDisplay(TileEntityStronglyCompressedStone stone) {
 		DecimalFormat format = new DecimalFormat("##.#");
 		return "Transforming: " + format.format(stone.getVolume() * 100) + "%";
 	}
-	
+
 	public String getSieveDisplayTail(TileEntitySieveAutomatic sieve) {
 		return sieve.storage.getEnergyStored() + " / " + sieve.storage.getMaxEnergyStored() + " RF";
 	}
 	public float getBarrelTimeRemaining(TileEntityBarrelThaumium barrel) {
 		return (barrel.getTimer() / (float) 1000) * 100;
 	}
-	
+
 	public static void callbackRegister(IWailaRegistrar registrar) {
 		Waila instance = new Waila();
 		registrar.registerBodyProvider(instance, BlockBarrelThaumium.class);
@@ -169,7 +195,7 @@ public class Waila implements IWailaDataProvider {
 		// TODO Auto-generated method stub
 		return null;
 	}
-	
-	
-	
+
+
+
 }

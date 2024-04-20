@@ -18,7 +18,6 @@ import exnihilo.registries.SieveRegistry;
 import exnihilo.registries.helpers.SiftingResult;
 import net.minecraft.block.Block;
 import net.minecraft.client.Minecraft;
-import net.minecraft.entity.item.EntityItem;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.inventory.ISidedInventory;
 import net.minecraft.item.ItemStack;
@@ -32,7 +31,7 @@ import net.minecraft.util.IIcon;
 import net.minecraftforge.common.util.ForgeDirection;
 
 public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHandler, ISidedInventory {
-	public EnergyStorage storage = new EnergyStorage(64000);
+	public EnergyStorage storage = new EnergyStorage(300000);
 	private int energyPerCycle = ModData.sieveAutomaticBaseEnergy;
 	private static final float MIN_RENDER_CAPACITY = 0.70f;
 	private static final float MAX_RENDER_CAPACITY = 0.9f;
@@ -50,14 +49,21 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 	public SieveMode mode = SieveMode.EMPTY;
 
 	private int timer = 0;
-	private boolean update = false;
-	private boolean particleMode = false;
-	
-	public enum SieveMode
-	{EMPTY(0), FILLED(1);
-	private SieveMode(int v){this.value = v;}
-	public int value;
-	}
+	private boolean needUpdate = false;
+	private boolean isWorking = false;
+
+    private int _idleTicks = 0;
+
+    public enum SieveMode {
+        EMPTY(0),
+        FILLED(1);
+
+        private SieveMode(int v){
+            this.value = v;
+        }
+
+        public int value;
+    }
 
 	public TileEntitySieveAutomatic()
 	{
@@ -86,138 +92,170 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
 	}
 
+    private boolean isInventoryFull(){
+        int size = getSizeInventory()-2;
+
+        for (int i = 0; i < size; i++) {
+            if(inventory[i] == null) return false;
+        }
+
+        return true;
+    }
+
+    public boolean isIdle(){
+        return _idleTicks > 0;
+    }
+
+    public int get_idleTicks() {
+        return _idleTicks;
+    }
+
 	@Override
-	public void updateEntity()
-	{
-		if (worldObj.isRemote && particleMode && ModData.sieveMakeParticles)
-		{
-			spawnFX(content, contentMeta);
-		}
+	public void updateEntity() {
+
+        if (worldObj.isRemote){
+
+            if (ModData.sieveMakeParticles && mode != SieveMode.EMPTY && isWorking && !isIdle()){
+                spawnFX(content, contentMeta);
+            }
+
+            processContentsClientSide();
+
+            return;
+        }
 
 		timer++;
-		if (timer >= UPDATE_INTERVAL)
-		{	
-			timer = 0;
-			disableParticles();
-
-			if (update)
-			{
+		if (timer >= UPDATE_INTERVAL) {
+            timer = 0;
+			if (needUpdate){
 				update();
 			}
 		}
 
+        if (_idleTicks > 0) {
+            _idleTicks--;
+            return;
+        }
 
+        if (isInventoryFull()){
+            _idleTicks = 20;
+            return;
+        }
 
-		//addd
-		if(storage.getEnergyStored() > getEffectiveEnergy())
-		{
-			if (mode == SieveMode.EMPTY && inventory[0] != null)
-			{
-				ItemStack held = inventory[0];
-				if (SieveUtils.registered(held))
-				{
-					addSievable(Block.getBlockFromItem(held.getItem()), held.getItemDamage());
-					decrStackSize(0,1);
-					storage.extractEnergy(getEffectiveEnergy(), false);
-				}
-			}else if(mode != SieveMode.EMPTY)
-			{
-				ProcessContents();
-			}
-		}
+        //addd
+        if(storage.getEnergyStored() > getEffectiveEnergy()) {
+            if (mode == SieveMode.EMPTY && inventory[0] != null) {
+                ItemStack held = inventory[0];
+                if (SieveUtils.registered(held))
+                {
+                    addSievable(Block.getBlockFromItem(held.getItem()), held.getItemDamage());
+                    decrStackSize(0,1);
+                    storage.extractEnergy(getEffectiveEnergy(), false);
+                }
+            }else if(mode != SieveMode.EMPTY) {
+                this.processContents();
+            }
+        }
 
 		//adddend
 	}
 
-	public void ProcessContents()
-	{	
 
+    public void processContentsClientSide() {
+        if (volume <= 0) return;
+
+        volume -= getEffectiveSpeed();
+
+        if (volume <= 0){
+            volume = 0;
+        }
+    }
+
+	public void processContents() {
 		volume -= getEffectiveSpeed();
 		storage.extractEnergy(getEffectiveEnergy(), false);
+        isWorking = true;
+        needUpdate = true;
 
-		if (volume <= 0)
-		{
-			mode = SieveMode.EMPTY;
-			//give rewards!
-			if (!worldObj.isRemote)
-			{
-				ArrayList<SiftingResult> rewards = SieveRegistry.getSiftingOutput(content, contentMeta);
-				if (rewards != null && rewards.size() > 0)
-				{
-					Iterator<SiftingResult> it = rewards.iterator();
-					while(it.hasNext())
-					{
-						SiftingResult reward = it.next();
-						int fortuneAmount;
-						if (ModData.sieveFortuneExtraRolls)
-							fortuneAmount = getFortuneModifier();
-						else
-							fortuneAmount = 1;
-						
-						for (int fortuneCounter = 0; fortuneCounter < fortuneAmount; fortuneCounter++)
-						{
-							int size = getSizeInventory()-2;
-							int inventoryIndex = 0;
-							if (worldObj.rand.nextInt(reward.rarity) == 0)
-							{
-								int fortuneAmount2;
-								if (ModData.sieveFortuneExtraDrops)
-									fortuneAmount2=getFortuneModifier();
-								else
-									fortuneAmount2=1;
-								
-								for (int fortuneCounter2 = 0; fortuneCounter2 < fortuneAmount2; fortuneCounter2++)
-								{
-									for(int i = 1; i < size; i++)
-									{
-										if(inventory[i] == null)
-										{
-											inventoryIndex=i;
-											break;
-										}
-										else
-										{
-											if (ItemHelper.itemsEqualWithMetadata(inventory[i],new ItemStack(reward.item, 1, reward.meta)) && inventory[i].stackSize < inventory[i].getMaxStackSize())
-											{
-												inventoryIndex=i;
-												break;
-											}
-										}
-									}
+        if (volume > 0){
+            return;
+        }
+
+        mode = SieveMode.EMPTY;
+
+        //give rewards!
+
+        ArrayList<SiftingResult> rewards = SieveRegistry.getSiftingOutput(content, contentMeta);
+        if (rewards != null && rewards.size() > 0)
+        {
+            Iterator<SiftingResult> it = rewards.iterator();
+            outerWhile: while(it.hasNext())
+            {
+                SiftingResult reward = it.next();
+                int fortuneAmount;
+                if (ModData.sieveFortuneExtraRolls)
+                    fortuneAmount = getFortuneModifier();
+                else
+                    fortuneAmount = 1;
+
+                for (int fortuneCounter = 0; fortuneCounter < fortuneAmount; fortuneCounter++)
+                {
+                    int size = getSizeInventory()-2;
+                    int inventoryIndex = 0;
+                    if (worldObj.rand.nextInt(reward.rarity) == 0)
+                    {
+                        int fortuneAmount2;
+                        if (ModData.sieveFortuneExtraDrops)
+                            fortuneAmount2=getFortuneModifier();
+                        else
+                            fortuneAmount2=1;
+
+                        for (int fortuneCounter2 = 0; fortuneCounter2 < fortuneAmount2; fortuneCounter2++)
+                        {
+                            for(int i = 1; i < size; i++)
+                            {
+                                if(inventory[i] == null)
+                                {
+                                    inventoryIndex=i;
+                                    break;
+                                }
+                                else
+                                {
+                                    if (ItemHelper.itemsEqualWithMetadata(inventory[i],new ItemStack(reward.item, 1, reward.meta)) && inventory[i].stackSize < inventory[i].getMaxStackSize())
+                                    {
+                                        inventoryIndex=i;
+                                        break;
+                                    }
+                                }
+                            }
 
 
-									if(inventoryIndex != 0)
-									{
-										if (inventory[inventoryIndex] != null)
-											inventory[inventoryIndex] = new ItemStack(reward.item, (inventory[inventoryIndex].stackSize + 1), reward.meta);
-										else 
-											inventory[inventoryIndex] = new ItemStack(reward.item, 1, reward.meta);
-									}
-									else
-									{
-										EntityItem entityitem = new EntityItem(worldObj, (double)xCoord + 0.5D, (double)yCoord + 1.5D, (double)zCoord + 0.5D, new ItemStack(reward.item, 1, reward.meta));
+                            if(inventoryIndex != 0)
+                            {
+                                if (inventory[inventoryIndex] != null)
+                                    inventory[inventoryIndex] = new ItemStack(reward.item, (inventory[inventoryIndex].stackSize + 1), reward.meta);
+                                else
+                                    inventory[inventoryIndex] = new ItemStack(reward.item, 1, reward.meta);
+                            }
+                            else
+                            {
+                                _idleTicks = 40; //will not spawn items on world, just stop the machine for a while
+                                break outerWhile;
+//										EntityItem entityitem = new EntityItem(worldObj, (double)xCoord + 0.5D, (double)yCoord + 1.5D, (double)zCoord + 0.5D, new ItemStack(reward.item, 1, reward.meta));
+//
+//										double f3 = 0.05F;
+//										entityitem.motionX = worldObj.rand.nextGaussian() * f3;
+//										entityitem.motionY = (0.2d);
+//										entityitem.motionZ = worldObj.rand.nextGaussian() * f3;
+//
+//										worldObj.spawnEntityInWorld(entityitem);
 
-										double f3 = 0.05F;
-										entityitem.motionX = worldObj.rand.nextGaussian() * f3;
-										entityitem.motionY = (0.2d);
-										entityitem.motionZ = worldObj.rand.nextGaussian() * f3;
-
-										worldObj.spawnEntityInWorld(entityitem);
-
-									}
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			particleMode = true;
-		}
-
-		update = true;
+                            }
+                        }
+                    }
+                }
+            }
+        }
 	}
 
 	@SideOnly(Side.CLIENT)
@@ -228,11 +266,11 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 			IIcon icon = block.getIcon(0, blockMeta);
 
 			for (int x = 0; x < 4; x++)
-			{	
-				ParticleSieve dust = new ParticleSieve(worldObj, 
-						xCoord + 0.8d * worldObj.rand.nextFloat() + 0.15d, 
-						yCoord + 0.69d, 
-						zCoord + 0.8d * worldObj.rand.nextFloat() + 0.15d, 
+			{
+				ParticleSieve dust = new ParticleSieve(worldObj,
+						xCoord + 0.8d * worldObj.rand.nextFloat() + 0.15d,
+						yCoord + 0.69d,
+						zCoord + 0.8d * worldObj.rand.nextFloat() + 0.15d,
 						0.0d, 0.0d, 0.0d, icon);
 
 				Minecraft.getMinecraft().effectRenderer.addEffect(dust);
@@ -247,20 +285,14 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 	public float getAdjustedVolume()
 	{
 		float capacity = MAX_RENDER_CAPACITY - MIN_RENDER_CAPACITY;
-		float adjusted = volume * capacity;		
+		float adjusted = volume * capacity;
 		adjusted += MIN_RENDER_CAPACITY;
 		return adjusted;
 	}
 
-	private void update()
-	{
-		update = false;
+	private void update() {
+		needUpdate = false;
 		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
-	}
-
-	private void disableParticles()
-	{
-		particleMode = false;
 	}
 
 	@Override
@@ -268,24 +300,25 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 	{
 		super.readFromNBT(compound);
 
-		switch (compound.getInteger("mode"))
-		{
-		case 0:
-			mode = SieveMode.EMPTY;
-			break;
+        switch (compound.getInteger("mode")) {
+            case 0:
+                mode = SieveMode.EMPTY;
+                break;
 
-		case 1:
-			mode = SieveMode.FILLED;
-			break;
-		}
+            case 1:
+                mode = SieveMode.FILLED;
+                break;
+        }
+
 		if(!compound.getString("content").equals("")) {
 			content = (Block)Block.blockRegistry.getObject(compound.getString("content"));
 		}else{
 			content = null;
 		}
+
 		contentMeta = compound.getInteger("contentMeta");
 		volume = compound.getFloat("volume");
-		particleMode = compound.getBoolean("particles");
+		isWorking = compound.getBoolean("isWorking");
 		this.PROCESSING_INTERVAL = compound.getFloat("speed");
 		storage.readFromNBT(compound);
 
@@ -302,6 +335,8 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 				this.inventory[b0] = ItemStack.loadItemStackFromNBT(nbttagcompound1);
 			}
 		}
+
+        this._idleTicks = compound.getInteger("_idleTicks");
 	}
 
 	@Override
@@ -317,14 +352,14 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 		}
 		compound.setInteger("contentMeta", contentMeta);
 		compound.setFloat("volume", volume);
-		compound.setBoolean("particles", particleMode);
+		compound.setBoolean("isWorking", isWorking);
 		compound.setFloat("speed", PROCESSING_INTERVAL);
 		storage.writeToNBT(compound);
 
 		NBTTagList nbttaglist = new NBTTagList();
 
 		for (int i = 0; i < this.inventory.length; ++i)
-		{	
+		{
 			if (this.inventory[i] != null)
 			{
 				NBTTagCompound nbttagcompound1 = new NBTTagCompound();
@@ -335,6 +370,7 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 		}
 
 		compound.setTag("Items", nbttaglist);
+        compound.setInteger("_idleTicks", _idleTicks);
 	}
 
 	@Override
@@ -471,7 +507,7 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 
 	@Override
 	public boolean isItemValidForSlot(int slot, ItemStack item) {
-		//SieveRegistry.Contains(Block.getBlockFromItem(item.getItem()),item.getItemDamage()) && 
+		//SieveRegistry.Contains(Block.getBlockFromItem(item.getItem()),item.getItemDamage()) &&
 		if (SieveRegistry.registered(Block.getBlockFromItem(item.getItem()),item.getItemDamage()) && slot == 0)
 		{
 			return true;
@@ -480,7 +516,7 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 	}
 
 	@Override
-	public int[] getAccessibleSlotsFromSide(int side) 
+	public int[] getAccessibleSlotsFromSide(int side)
 	{
 		int size = getSizeInventory()-2;
 		int[] slots = new int[size];
@@ -547,12 +583,12 @@ public class TileEntitySieveAutomatic extends TileEntity  implements IEnergyHand
 			{
 				if (rand.nextInt(101-ModData.sieveFortuneChance) == 0)
 					multiplier++;
-			}	
+			}
 			return multiplier;
 		}
 	}
 
-	public void setEnergyStored(int energy) 
+	public void setEnergyStored(int energy)
 	{
 		this.storage.setEnergyStored(energy);
 	}

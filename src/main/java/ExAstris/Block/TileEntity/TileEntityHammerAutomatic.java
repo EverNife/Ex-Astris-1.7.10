@@ -29,7 +29,7 @@ import java.util.Iterator;
 
 public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHandler, ISidedInventory{
 
-	public EnergyStorage storage = new EnergyStorage(64000);
+	public EnergyStorage storage = new EnergyStorage(300000);
 	private int energyPerCycle = ModData.hammerAutomaticBaseEnergy;
 	private float processingInterval = 0.005f;
 	protected ItemStack[] inventory;
@@ -39,18 +39,24 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 	public ItemStack stackInProgress;
 
 	private float volume = 0;
-	private boolean particleMode;
-	private boolean update=false;
+	private boolean isWorking;
+	private boolean needUpdate = false;
 	private static final int UPDATE_INTERVAL = 20;
 
 	private int timer=0;
 
-	public enum HammerMode
-	{
-		EMPTY(0), FILLED(1);
-		private HammerMode(int v){this.value = v;}
-		public int value;
-	}
+    private int _idleTicks = 0;
+
+    public enum HammerMode{
+        EMPTY(0),
+        FILLED(1);
+
+        private HammerMode(int v){
+            this.value = v;
+        }
+
+        public int value;
+    }
 
 	public TileEntityHammerAutomatic()
 	{
@@ -58,23 +64,56 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 		this.mode=HammerMode.EMPTY;
 	}
 
-	public void updateEntity()
-	{
-		timer++;
-		if (timer >= UPDATE_INTERVAL)
-		{	
-			timer = 0;
-			//disableParticles();
+    private boolean isInventoryFull(){
+        int size = getSizeInventory()-2;
 
-			if (update)
-			{
-				update();
-			}
-		}
-		if(storage.getEnergyStored() > getEffectiveEnergy())
-		{
-			if (mode == HammerMode.EMPTY && inventory[0] != null)
-			{
+        for (int i = 0; i < size; i++) {
+            if(inventory[i] == null) return false;
+        }
+
+        return true;
+    }
+
+    public boolean isIdle(){
+        return _idleTicks > 0;
+    }
+
+    public int get_idleTicks() {
+        return _idleTicks;
+    }
+
+    @Override
+	public void updateEntity() {
+
+        if (worldObj.isRemote){
+
+            if (isWorking && !isIdle()){
+                processContentsClientSide();
+            }
+
+            return;
+        }
+
+        timer++;
+        if (timer >= UPDATE_INTERVAL) {
+            timer = 0;
+            if (needUpdate){
+                update();
+            }
+        }
+
+        if (_idleTicks > 0) {
+            _idleTicks--;
+            return;
+        }
+
+        if (isInventoryFull()){
+            _idleTicks = 40;
+            return;
+        }
+
+		if(storage.getEnergyStored() > getEffectiveEnergy()) {
+			if (mode == HammerMode.EMPTY && inventory[0] != null) {
 				ItemStack held = inventory[0];
 				if (HammerRegistry.registered(held))
 				{
@@ -85,9 +124,7 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 					storage.extractEnergy(getEffectiveEnergy(), false);
 
 				}
-			}
-			else if(mode != HammerMode.EMPTY)
-			{
+			} else if(mode != HammerMode.EMPTY) {
 				processContents();
 			}
 		}
@@ -104,84 +141,94 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
 	}
 
+    public void processContentsClientSide() {
+        if (volume <= 0) return;
+
+        volume -= getEffectiveSpeed();
+
+        if (inventory[0] != null && (stackInProgress == null || inventory[0].getItem() != stackInProgress.getItem()) && HammerRegistry.registered(inventory[0])) {
+            stackInProgress = inventory[0].copy();
+            stackInProgress.stackSize = 1;
+        }
+
+        if (volume <= 0) {
+            volume = 0;
+            if (stackInProgress != null) {
+                spawnCrushParticles();
+            }
+        }
+    }
+
 	public void processContents()
 	{
 		volume -= getEffectiveSpeed();
 		storage.extractEnergy(getEffectiveEnergy(), false);
+        isWorking = true;
+        needUpdate = true;
 
-		if (volume <= 0)
-		{
-			mode = HammerMode.EMPTY;
-			//give rewards!
-			if (!worldObj.isRemote)
-			{
-				
-				ArrayList<Smashable> rewards = HammerRegistry.getRewards(content, contentMeta);
-				if (rewards.size() > 0)
-				{
-					
-					Iterator<Smashable> it = rewards.iterator();
-					while(it.hasNext())
-					{
-						Smashable reward = it.next();
+        if (volume > 0){
+            return;
+        }
 
-						int size = getSizeInventory()-2;
-						int inventoryIndex = 0;
-						if (worldObj.rand.nextFloat() <= reward.chance + (reward.luckMultiplier * getFortuneModifier()))
-						{
-							for(int i = 1; i < size; i++)
-							{
-								if(inventory[i] == null)
-								{
-									inventoryIndex=i;
-									break;
-								}
-								else
-								{
-									if (ItemHelper.itemsEqualWithMetadata(inventory[i],new ItemStack(reward.item, 1, reward.meta)) && inventory[i].stackSize < inventory[i].getMaxStackSize())
-									{
-										inventoryIndex=i;
-										break;
-									}
-								}
-							}
+        mode = HammerMode.EMPTY;
+        //give rewards!
+
+        ArrayList<Smashable> rewards = HammerRegistry.getRewards(content, contentMeta);
+        if (rewards.size() > 0)
+        {
+
+            Iterator<Smashable> it = rewards.iterator();
+            outerWhile: while(it.hasNext())
+            {
+                Smashable reward = it.next();
+
+                int size = getSizeInventory()-2;
+                int inventoryIndex = 0;
+                if (worldObj.rand.nextFloat() <= reward.chance + (reward.luckMultiplier * getFortuneModifier()))
+                {
+                    for(int i = 1; i < size; i++)
+                    {
+                        if(inventory[i] == null)
+                        {
+                            inventoryIndex=i;
+                            break;
+                        }
+                        else
+                        {
+                            if (ItemHelper.itemsEqualWithMetadata(inventory[i],new ItemStack(reward.item, 1, reward.meta)) && inventory[i].stackSize < inventory[i].getMaxStackSize())
+                            {
+                                inventoryIndex=i;
+                                break;
+                            }
+                        }
+                    }
 
 
-							if(inventoryIndex != 0)
-							{
-								if (inventory[inventoryIndex] != null)
-									inventory[inventoryIndex] = new ItemStack(reward.item, (inventory[inventoryIndex].stackSize + 1), reward.meta);
-								else 
-									inventory[inventoryIndex] = new ItemStack(reward.item, 1, reward.meta);
-							}
-							else
-							{
-								EntityItem entityitem = new EntityItem(worldObj, (double)xCoord + 0.5D, (double)yCoord + 1.5D, (double)zCoord + 0.5D, new ItemStack(reward.item, 1, reward.meta));
+                    if(inventoryIndex != 0)
+                    {
+                        if (inventory[inventoryIndex] != null)
+                            inventory[inventoryIndex] = new ItemStack(reward.item, (inventory[inventoryIndex].stackSize + 1), reward.meta);
+                        else
+                            inventory[inventoryIndex] = new ItemStack(reward.item, 1, reward.meta);
+                    }
+                    else
+                    {
+                        _idleTicks = 40; //will not spawn items on world, just stop the machine for a while
+                        break outerWhile;
+//                            EntityItem entityitem = new EntityItem(worldObj, (double)xCoord + 0.5D, (double)yCoord + 1.5D, (double)zCoord + 0.5D, new ItemStack(reward.item, 1, reward.meta));
+//
+//                            double f3 = 0.05F;
+//                            entityitem.motionX = worldObj.rand.nextGaussian() * f3;
+//                            entityitem.motionY = (0.2d);
+//                            entityitem.motionZ = worldObj.rand.nextGaussian() * f3;
+//
+//                            worldObj.spawnEntityInWorld(entityitem);
 
-								double f3 = 0.05F;
-								entityitem.motionX = worldObj.rand.nextGaussian() * f3;
-								entityitem.motionY = (0.2d);
-								entityitem.motionZ = worldObj.rand.nextGaussian() * f3;
-
-								worldObj.spawnEntityInWorld(entityitem);
-
-							}
-						}
-					}
-				}
-			}
-			else if (stackInProgress != null)
-			{
-				spawnCrushParticles();
-			}
-		}
-		else
-		{
-			particleMode = true;
-		}
-
-		update = true;
-	}
+                    }
+                }
+            }
+        }
+    }
 
 	@SideOnly(Side.CLIENT)
 	private void spawnCrushParticles()
@@ -198,24 +245,24 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 
 	private void update()
 	{
-		update = false;
+		needUpdate = false;
 		worldObj.markBlockForUpdate(xCoord, yCoord, zCoord);
 	}
 
 	@Override
-	public boolean canConnectEnergy(ForgeDirection arg0) 
+	public boolean canConnectEnergy(ForgeDirection arg0)
 	{
 		return true;
 	}
 
 	@Override
-	public int getSizeInventory() 
+	public int getSizeInventory()
 	{
 		return 23;
 	}
 
 	@Override
-	public ItemStack getStackInSlot(int slot) 
+	public ItemStack getStackInSlot(int slot)
 	{
 		return inventory[slot];
 	}
@@ -244,13 +291,13 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 	}
 
 	@Override
-	public ItemStack getStackInSlotOnClosing(int p_70304_1_) 
+	public ItemStack getStackInSlotOnClosing(int p_70304_1_)
 	{
 		return null;
 	}
 
 	@Override
-	public void setInventorySlotContents(int slot, ItemStack stack) 
+	public void setInventorySlotContents(int slot, ItemStack stack)
 	{
 		inventory[slot] = stack;
 		if(stack != null && stack.stackSize > getInventoryStackLimit())
@@ -261,25 +308,25 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 	}
 
 	@Override
-	public String getInventoryName() 
+	public String getInventoryName()
 	{
 		return null;
 	}
 
 	@Override
-	public boolean hasCustomInventoryName() 
+	public boolean hasCustomInventoryName()
 	{
 		return false;
 	}
 
 	@Override
-	public int getInventoryStackLimit() 
+	public int getInventoryStackLimit()
 	{
 		return 64;
 	}
 
 	@Override
-	public boolean isUseableByPlayer(EntityPlayer player) 
+	public boolean isUseableByPlayer(EntityPlayer player)
 	{
 		return worldObj.getTileEntity(this.xCoord, this.yCoord, this.zCoord) != this ? false : player.getDistanceSq((double)this.xCoord + 0.5D, (double)this.yCoord + 0.5D, (double)this.zCoord + 0.5D) <= 64.0D;
 	}
@@ -291,13 +338,13 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 	public void closeInventory() {}
 
 	@Override
-	public boolean isItemValidForSlot(int slot, ItemStack stack) 
+	public boolean isItemValidForSlot(int slot, ItemStack stack)
 	{
 		return this.canInsertItem(slot, stack, 0); //Side is irrelevant here
 	}
 
 	@Override
-	public int[] getAccessibleSlotsFromSide(int p_94128_1_) 
+	public int[] getAccessibleSlotsFromSide(int p_94128_1_)
 	{
 		int size = getSizeInventory()-2;
 		int[] slots = new int[size];
@@ -310,7 +357,7 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 
 	@Override
 	public boolean canInsertItem(int slot, ItemStack item, int side) {
-		if (slot == 0) 
+		if (slot == 0)
 		{
 			return HammerRegistry.registered(item);
 		}
@@ -350,7 +397,7 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 		}
 		contentMeta = compound.getInteger("contentMeta");
 		volume = compound.getFloat("volume");
-		particleMode = compound.getBoolean("particles");
+		isWorking = compound.getBoolean("isWorking");
 		this.processingInterval = compound.getFloat("speed");
 		storage.readFromNBT(compound);
 
@@ -382,14 +429,14 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 		}
 		compound.setInteger("contentMeta", contentMeta);
 		compound.setFloat("volume", volume);
-		compound.setBoolean("particles", particleMode);
+		compound.setBoolean("isWorking", isWorking);
 		compound.setFloat("speed", processingInterval);
 		storage.writeToNBT(compound);
 
 		NBTTagList nbttaglist = new NBTTagList();
 
 		for (int i = 0; i < this.inventory.length; ++i)
-		{	
+		{
 			if (this.inventory[i] != null)
 			{
 				NBTTagCompound nbttagcompound1 = new NBTTagCompound();
@@ -419,13 +466,13 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 	}
 
 	@Override
-	public int extractEnergy(ForgeDirection from, int maxExtract, boolean simulate) 
+	public int extractEnergy(ForgeDirection from, int maxExtract, boolean simulate)
 	{
 		return storage.extractEnergy(maxExtract, simulate);
 	}
 
 	@Override
-	public int getEnergyStored(ForgeDirection arg0) 
+	public int getEnergyStored(ForgeDirection arg0)
 	{
 		return storage.getEnergyStored();
 	}
@@ -436,7 +483,7 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 	}
 
 	@Override
-	public int receiveEnergy(ForgeDirection from, int maxReceive, boolean simulate) 
+	public int receiveEnergy(ForgeDirection from, int maxReceive, boolean simulate)
 	{
 		return storage.receiveEnergy(maxReceive, simulate);
 	}
@@ -477,7 +524,7 @@ public class TileEntityHammerAutomatic extends TileEntity  implements IEnergyHan
 		}
 	}
 
-	public float getVolume() 
+	public float getVolume()
 	{
 		return this.volume;
 	}
